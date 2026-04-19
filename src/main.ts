@@ -23,7 +23,8 @@ function opposite(a: Dir, b: Dir): boolean {
   )
 }
 
-const RAW_MAP = [
+/** Horizontal definition; playfield is transposed so the maze is tall on phones. */
+const RAW_MAP_HORIZONTAL = [
   '###################',
   '#.................#',
   '#.###.#.#.#.###.#.#',
@@ -37,6 +38,22 @@ const RAW_MAP = [
   '#.................#',
   '###################',
 ] as const
+
+function transposeMap(lines: readonly string[]): string[] {
+  const h = lines.length
+  const w = lines[0]?.length ?? 0
+  const out: string[] = []
+  for (let x = 0; x < w; x++) {
+    let row = ''
+    for (let y = 0; y < h; y++) {
+      row += lines[y]?.[x] ?? '#'
+    }
+    out.push(row)
+  }
+  return out
+}
+
+const RAW_MAP = transposeMap(RAW_MAP_HORIZONTAL)
 
 interface ParsedMap {
   width: number
@@ -175,10 +192,17 @@ function boot(
   }
 
   function resize() {
-    const maxW = Math.min(window.innerWidth - 24, 520)
-    const maxH = Math.min(window.innerHeight - 180, 640)
-    cell = Math.min(Math.floor(maxW / map.width), Math.floor(maxH / map.height), 28)
-    cell = Math.max(cell, 16)
+    const padX = 20
+    const padY = 16
+    const belowCanvas = 112
+    const availW = Math.max(120, window.innerWidth - padX)
+    const availH = Math.max(160, window.innerHeight - padY - belowCanvas)
+    const cw = Math.floor(availW / map.width)
+    const ch = Math.floor(availH / map.height)
+    const portrait = window.innerHeight >= window.innerWidth
+    const cap = portrait ? 36 : 32
+    cell = Math.min(cw, ch, cap)
+    cell = Math.max(cell, 15)
     dpr = Math.min(window.devicePixelRatio ?? 1, 2)
     const w = map.width * cell
     const h = map.height * cell
@@ -284,7 +308,19 @@ function boot(
 
     const gx = state.px * cell + cell / 2
     const gy = state.py * cell + cell / 2
-    const size = cell * 0.82
+    const heroMax = cell * 1.22
+    let hw = heroMax
+    let hh = heroMax
+    if (hero.complete && hero.naturalWidth > 0) {
+      const ar = hero.naturalWidth / hero.naturalHeight
+      if (ar >= 1) {
+        hw = heroMax
+        hh = heroMax / ar
+      } else {
+        hh = heroMax
+        hw = heroMax * ar
+      }
+    }
     ctx.save()
     ctx.translate(gx, gy)
     if (state.dir === 'right') ctx.rotate(0)
@@ -292,16 +328,17 @@ function boot(
     else if (state.dir === 'left') ctx.rotate(Math.PI)
     else if (state.dir === 'up') ctx.rotate(-Math.PI / 2)
     if (hero.complete && hero.naturalWidth > 0) {
-      ctx.drawImage(hero, -size / 2, -size / 2, size, size)
+      ctx.drawImage(hero, -hw / 2, -hh / 2, hw, hh)
     } else {
+      const r0 = heroMax * 0.48
       ctx.fillStyle = '#c4b5fd'
       ctx.beginPath()
-      ctx.ellipse(0, 0, size * 0.45, size * 0.42, 0, 0, Math.PI * 2)
+      ctx.ellipse(0, 0, r0 * 0.94, r0 * 0.9, 0, 0, Math.PI * 2)
       ctx.fill()
       ctx.fillStyle = '#1a0f2e'
       ctx.beginPath()
-      ctx.arc(-size * 0.14, -size * 0.08, size * 0.07, 0, Math.PI * 2)
-      ctx.arc(size * 0.14, -size * 0.08, size * 0.07, 0, Math.PI * 2)
+      ctx.arc(-r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
+      ctx.arc(r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.restore()
@@ -311,7 +348,7 @@ function boot(
       const g = state.ghosts[i]
       const cx = g.x * cell + cell / 2
       const cy = g.y * cell + cell / 2
-      const rr = cell * 0.38
+      const rr = cell * 0.44
       ctx.fillStyle = ghostColors[i % ghostColors.length]
       ctx.beginPath()
       ctx.arc(cx, cy - rr * 0.1, rr, Math.PI, 0)

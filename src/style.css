@@ -25,14 +25,17 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+  justify-content: flex-start;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
     max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  gap: 10px;
+  gap: 8px;
 }
 
 #game {
-  width: min(100vw - 24px, 420px);
+  width: auto;
+  max-width: calc(100vw - 24px);
   height: auto;
   display: block;
   border-radius: 12px;
