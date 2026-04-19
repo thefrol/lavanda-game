@@ -22,26 +22,26 @@ npm run dev
 
 Кто есть кто на экране совпадает с жизнью: собака, жена, корм. Файлы в `public/` подхватываются в сборке:
 
-- **Лаванда (игрок)** — [`public/lavanda_zoomed.png`](public/lavanda_zoomed.png) (из корневого `lavanda_zoomed.png`, для веба: `sips -Z 512 …`).
-- **Корм на поле** — [`public/poop.png`](public/poop.png) из корневого [`poop.png`](poop.png) (`sips -Z 72 poop.png --out public/poop.png`).
-- **Ольба (призрак)** — [`public/olba.png`](public/olba.png) из [`olba.png`](olba.png) (`sips -Z 160 olba.png --out public/olba.png`).
+- **Лаванда (игрок)** — `[public/lavanda_zoomed.png](public/lavanda_zoomed.png)` (из корневого `lavanda_zoomed.png`, для веба: `sips -Z 512 …`).
+- **Корм на поле** — `[public/poop.png](public/poop.png)` из корневого `[poop.png](poop.png)` (`sips -Z 72 poop.png --out public/poop.png`).
+- **Ольба (призрак)** — `[public/olba.png](public/olba.png)` из `[olba.png](olba.png)` (`sips -Z 160 olba.png --out public/olba.png`).
 
-Старый [`public/lavanda.png`](public/lavanda.png) в коде не используется.
+Старый `[public/lavanda.png](public/lavanda.png)` в коде не используется.
 
-Иконки PWA (favicon, **На экран «Домой»**, манифест) — квадратные PNG из **корневого** [`lavanda.png`](lavanda.png) (полное фото):
+Иконки PWA (favicon, **На экран «Домой»**, манифест) — квадратные PNG из **корневого** `[lavanda.png](lavanda.png)` (полное фото):
 
 ```bash
 npm run icons
 # или: bash scripts/sync_pwa_icons.sh /путь/к/фото.png
 ```
 
-Затем коммит `public/icon-*.png` и `public/apple-touch-icon.png`. Скрипт [`scripts/make_icons.py`](scripts/make_icons.py) только создаёт `.nojekyll` для Pages.
+Затем коммит `public/icon-*.png` и `public/apple-touch-icon.png`. Скрипт `[scripts/make_icons.py](scripts/make_icons.py)` только создаёт `.nojekyll` для Pages.
 
 ## Публикация на GitHub Pages
 
 1. Репозиторий: [thefrol/lavanda-game](https://github.com/thefrol/lavanda-game). **Имя репо совпадает с `base` в `vite.config.ts`** (`/lavanda-game/`).
 2. Один раз в репозитории: **Settings → Pages → Build and deployment → Source: GitHub Actions** (без публикации «с ветки» из корня `main`, иначе на сайте будет исходник, а не `dist`).
-3. Любой пуш в **`main`** запускает [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml): `npm ci` → `npm run build` → выкладка содержимого **`dist/`** на Pages.
+3. Любой пуш в `**main`** запускает `[.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)`: `npm ci` → `npm run build` → выкладка содержимого `**dist/**` на Pages.
 4. Игра: [thefrol.github.io/lavanda-game](https://thefrol.github.io/lavanda-game/)
 
 ## iPhone: добавить на экран «Домой»
@@ -59,3 +59,4 @@ npm run icons
 ```bash
 python3 scripts/make_icons.py
 ```
+
