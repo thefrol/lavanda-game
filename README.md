@@ -1,6 +1,10 @@
 # Лаванда — мини-игра в духе Pac-Man (PWA)
 
-Веб-игра с героем-собакой. Собрана под **GitHub Pages**: после деплоя открываете ссылку в **Safari** на iPhone и добавляете на экран «Домой» — получается иконка как у приложения.
+## Зачем это существует
+
+**Лаванда** — наша собака, она же главная героиня: бегает по лабиринту и собирает «лакомства». **Ольба** — моя жена; в игре она в роли «призрака» из Pac-Man (тот самый, кого надо избегать — в шутку, с любовью). Получилась маленькая **Pac-Man‑стильная** головоломка в браузере, упакованная как **PWA**: открываешь в **Safari** на iPhone, добавляешь на экран «Домой» — и у любимого человека своё мини‑приложение с нашими лицами (и мордой собаки).
+
+Технически это статический фронт на **Vite + TypeScript**, деплой на **GitHub Pages** по пушу в `main`.
 
 **Репозиторий:** [github.com/thefrol/lavanda-game](https://github.com/thefrol/lavanda-game)  
 **Игра (после включения Pages и успешного деплоя):** [thefrol.github.io/lavanda-game/](https://thefrol.github.io/lavanda-game/)
@@ -14,13 +18,13 @@ npm run dev
 
 Откройте в браузере адрес, который выведет Vite (с учётом `base` это будет что-то вроде `http://localhost:5173/lavanda-game/`).
 
-## Своя фотография Лаванды
+## Спрайты и ассеты
 
-Спрайты в `public/` (подхватываются в сборке):
+Кто есть кто на экране совпадает с жизнью: собака, жена, корм. Файлы в `public/` подхватываются в сборке:
 
-- **Лаванда** — [`lavanda_zoomed.png`](public/lavanda_zoomed.png) (из корневого `lavanda_zoomed.png`, для веба: `sips -Z 512 …`).
-- **Корм на поле** — [`poop.png`](public/poop.png) из корневого [`poop.png`](poop.png) (`sips -Z 72 poop.png --out public/poop.png`).
-- **Ольба (призрак)** — [`olba.png`](public/olba.png) из [`olba.png`](olba.png) (`sips -Z 160 olba.png --out public/olba.png`).
+- **Лаванда (игрок)** — [`public/lavanda_zoomed.png`](public/lavanda_zoomed.png) (из корневого `lavanda_zoomed.png`, для веба: `sips -Z 512 …`).
+- **Корм на поле** — [`public/poop.png`](public/poop.png) из корневого [`poop.png`](poop.png) (`sips -Z 72 poop.png --out public/poop.png`).
+- **Ольба (призрак)** — [`public/olba.png`](public/olba.png) из [`olba.png`](olba.png) (`sips -Z 160 olba.png --out public/olba.png`).
 
 Старый [`public/lavanda.png`](public/lavanda.png) в коде не используется.
 
@@ -38,7 +42,7 @@ npm run icons
 1. Репозиторий: [thefrol/lavanda-game](https://github.com/thefrol/lavanda-game). **Имя репо совпадает с `base` в `vite.config.ts`** (`/lavanda-game/`).
 2. Один раз в репозитории: **Settings → Pages → Build and deployment → Source: GitHub Actions** (без публикации «с ветки» из корня `main`, иначе на сайте будет исходник, а не `dist`).
 3. Любой пуш в **`main`** запускает [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml): `npm ci` → `npm run build` → выкладка содержимого **`dist/`** на Pages.
-4. Игра: **https://thefrol.github.io/lavanda-game/**
+4. Игра: [thefrol.github.io/lavanda-game](https://thefrol.github.io/lavanda-game/)
 
 ## iPhone: добавить на экран «Домой»
 
