@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Write simple PNGs into public/ (stdlib only)."""
+"""Write PWA icons into public/ (stdlib only).
+
+In-game hero is public/lavanda.png — put your dog photo there (this script does not overwrite it).
+"""
 from __future__ import annotations
 
 import struct
@@ -44,11 +47,6 @@ def main() -> None:
     PUBLIC.mkdir(parents=True, exist_ok=True)
     lavender = (183, 148, 246, 255)
     deep = (45, 27, 78, 255)
-    white = (255, 255, 255, 255)
-
-    # Hero-ish blob for in-game sprite (square)
-    write_png(PUBLIC / "lavanda.png", 64, 64, fill_rounded(64, 64, deep, lavender))
-
     # App icons (lavender circle on deep bg)
     for size, name in ((192, "icon-192.png"), (512, "icon-512.png"), (180, "apple-touch-icon.png")):
         write_png(PUBLIC / name, size, size, fill_rounded(size, size, deep, lavender))

@@ -16,7 +16,9 @@ npm run dev
 
 ## Своя фотография Лаванды
 
-Замените файл [`public/lavanda.png`](public/lavanda.png) на квадратное фото (лучше ~512×512 и выше). После `npm run build` оно попадёт в `dist/`. При желании обновите [`public/apple-touch-icon.png`](public/apple-touch-icon.png) и иконки `icon-192.png` / `icon-512.png` (можно снова сгенерировать через `python3 scripts/make_icons.py`, предварительно подставив свои изображения в скрипт или просто перезаписав PNG вручную).
+Именно [`public/lavanda.png`](public/lavanda.png) попадает в игру и в сборку. Можно положить туда квадратное фото (~512px по длинной стороне достаточно для спрайта). Корневой `lavanda.png` в репозитории — отдельная копия; при смене фото обновляйте **`public/lavanda.png`**, иначе на сайте останется старый спрайт.
+
+Иконки приложения: [`public/apple-touch-icon.png`](public/apple-touch-icon.png), `icon-192.png`, `icon-512.png` — сгенерировать заглушки: `python3 scripts/make_icons.py` (скрипт **не** перезаписывает `lavanda.png`).
 
 ## Публикация на GitHub Pages
 
