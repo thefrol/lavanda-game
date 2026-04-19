@@ -16,7 +16,13 @@ npm run dev
 
 ## Своя фотография Лаванды
 
-Спрайт героя в игре: [`public/lavanda_zoomed.png`](public/lavanda_zoomed.png) (крупный кадр). Исходник можно держать в корне как [`lavanda_zoomed.png`](lavanda_zoomed.png); для веба удобно ужать длинную сторону до ~512px, например: `sips -Z 512 lavanda_zoomed.png --out public/lavanda_zoomed.png`. Старый [`public/lavanda.png`](public/lavanda.png) в репо можно оставить или удалить — в коде он больше не используется.
+Спрайты в `public/` (подхватываются в сборке):
+
+- **Лаванда** — [`lavanda_zoomed.png`](public/lavanda_zoomed.png) (из корневого `lavanda_zoomed.png`, для веба: `sips -Z 512 …`).
+- **Корм на поле** — [`poop.png`](public/poop.png) из корневого [`poop.png`](poop.png) (`sips -Z 72 poop.png --out public/poop.png`).
+- **Ольба (призрак)** — [`olba.png`](public/olba.png) из [`olba.png`](olba.png) (`sips -Z 160 olba.png --out public/olba.png`).
+
+Старый [`public/lavanda.png`](public/lavanda.png) в коде не используется.
 
 Иконки PWA (favicon, **На экран «Домой»**, манифест) — квадратные PNG из **корневого** [`lavanda.png`](lavanda.png) (полное фото):
 

@@ -161,9 +161,18 @@ function boot(
   restartBtn: HTMLButtonElement,
 ) {
   const map = parseMap(RAW_MAP)
+  const base = import.meta.env.BASE_URL
   const hero = new Image()
   hero.decoding = 'async'
-  hero.src = `${import.meta.env.BASE_URL}lavanda_zoomed.png`
+  hero.src = `${base}lavanda_zoomed.png`
+
+  const treats = new Image()
+  treats.decoding = 'async'
+  treats.src = `${base}poop.png`
+
+  const olba = new Image()
+  olba.decoding = 'async'
+  olba.src = `${base}olba.png`
 
   let cell = 22
   let dpr = Math.min(window.devicePixelRatio ?? 1, 2)
@@ -295,14 +304,31 @@ function boot(
       }
     }
 
-    ctx.fillStyle = '#7c5a12'
-    const r = Math.max(1.8, cell * 0.11)
+    const treatMax = cell * 0.52
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (!map.dot[y][x]) continue
-        ctx.beginPath()
-        ctx.arc(x * cell + cell / 2, y * cell + cell / 2, r, 0, Math.PI * 2)
-        ctx.fill()
+        const cx = x * cell + cell / 2
+        const cy = y * cell + cell / 2
+        if (treats.complete && treats.naturalWidth > 0) {
+          const ar = treats.naturalWidth / treats.naturalHeight
+          let tw = treatMax
+          let th = treatMax
+          if (ar >= 1) {
+            tw = treatMax
+            th = treatMax / ar
+          } else {
+            th = treatMax
+            tw = treatMax * ar
+          }
+          ctx.drawImage(treats, cx - tw / 2, cy - th / 2, tw, th)
+        } else {
+          const r = Math.max(1.8, cell * 0.11)
+          ctx.fillStyle = '#7c5a12'
+          ctx.beginPath()
+          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
       }
     }
 
@@ -339,34 +365,49 @@ function boot(
       ctx.restore()
     }
 
-    const ghostColors = ['#c2415c', '#1d6fa5', '#0d8064']
+    const ghostMax = cell * 1.02
     for (let i = 0; i < state.ghosts.length; i++) {
       const g = state.ghosts[i]
       const cx = g.x * cell + cell / 2
       const cy = g.y * cell + cell / 2
-      const rr = cell * 0.44
-      ctx.fillStyle = ghostColors[i % ghostColors.length]
-      ctx.beginPath()
-      ctx.arc(cx, cy - rr * 0.1, rr, Math.PI, 0)
-      ctx.lineTo(cx + rr, cy + rr * 0.9)
-      ctx.lineTo(cx + rr * 0.66, cy + rr * 0.55)
-      ctx.lineTo(cx + rr * 0.33, cy + rr * 0.95)
-      ctx.lineTo(cx, cy + rr * 0.55)
-      ctx.lineTo(cx - rr * 0.33, cy + rr * 0.95)
-      ctx.lineTo(cx - rr * 0.66, cy + rr * 0.55)
-      ctx.lineTo(cx - rr, cy + rr * 0.9)
-      ctx.closePath()
-      ctx.fill()
-      ctx.fillStyle = '#faf8ff'
-      ctx.beginPath()
-      ctx.arc(cx - rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
-      ctx.arc(cx + rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#1e1b2e'
-      ctx.beginPath()
-      ctx.arc(cx - rr * 0.32, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
-      ctx.arc(cx + rr * 0.38, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
-      ctx.fill()
+      if (olba.complete && olba.naturalWidth > 0) {
+        const ar = olba.naturalWidth / olba.naturalHeight
+        let ow = ghostMax
+        let oh = ghostMax
+        if (ar >= 1) {
+          ow = ghostMax
+          oh = ghostMax / ar
+        } else {
+          oh = ghostMax
+          ow = ghostMax * ar
+        }
+        ctx.drawImage(olba, cx - ow / 2, cy - oh / 2, ow, oh)
+      } else {
+        const rr = cell * 0.44
+        const ghostColors = ['#c2415c', '#1d6fa5', '#0d8064']
+        ctx.fillStyle = ghostColors[i % ghostColors.length]
+        ctx.beginPath()
+        ctx.arc(cx, cy - rr * 0.1, rr, Math.PI, 0)
+        ctx.lineTo(cx + rr, cy + rr * 0.9)
+        ctx.lineTo(cx + rr * 0.66, cy + rr * 0.55)
+        ctx.lineTo(cx + rr * 0.33, cy + rr * 0.95)
+        ctx.lineTo(cx, cy + rr * 0.55)
+        ctx.lineTo(cx - rr * 0.33, cy + rr * 0.95)
+        ctx.lineTo(cx - rr * 0.66, cy + rr * 0.55)
+        ctx.lineTo(cx - rr, cy + rr * 0.9)
+        ctx.closePath()
+        ctx.fill()
+        ctx.fillStyle = '#faf8ff'
+        ctx.beginPath()
+        ctx.arc(cx - rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
+        ctx.arc(cx + rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = '#1e1b2e'
+        ctx.beginPath()
+        ctx.arc(cx - rr * 0.32, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
+        ctx.arc(cx + rr * 0.38, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
 
     if (!state.alive) {
@@ -376,7 +417,7 @@ function boot(
       ctx.font = `700 ${Math.max(16, cell * 0.9)}px system-ui, sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      const msg = state.won ? 'Победа!' : 'Ой, призрак!'
+      const msg = state.won ? 'Победа!' : 'Ой, Ольба!'
       ctx.fillText(msg, w / 2, h / 2 - cell * 0.35)
       ctx.font = `500 ${Math.max(12, cell * 0.45)}px system-ui, sans-serif`
       ctx.fillText('Нажми «Перезапуск»', w / 2, h / 2 + cell * 0.55)
@@ -446,6 +487,8 @@ function boot(
   })
 
   hero.addEventListener('load', draw)
+  treats.addEventListener('load', draw)
+  olba.addEventListener('load', draw)
 
   setInterval(() => {
     const playing = state.alive && !state.won
