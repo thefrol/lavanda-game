@@ -321,15 +321,11 @@ function boot(
         hw = heroMax * ar
       }
     }
-    ctx.save()
-    ctx.translate(gx, gy)
-    if (state.dir === 'right') ctx.rotate(0)
-    else if (state.dir === 'down') ctx.rotate(Math.PI / 2)
-    else if (state.dir === 'left') ctx.rotate(Math.PI)
-    else if (state.dir === 'up') ctx.rotate(-Math.PI / 2)
     if (hero.complete && hero.naturalWidth > 0) {
-      ctx.drawImage(hero, -hw / 2, -hh / 2, hw, hh)
+      ctx.drawImage(hero, gx - hw / 2, gy - hh / 2, hw, hh)
     } else {
+      ctx.save()
+      ctx.translate(gx, gy)
       const r0 = heroMax * 0.48
       ctx.fillStyle = '#4b5563'
       ctx.beginPath()
@@ -340,8 +336,8 @@ function boot(
       ctx.arc(-r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
       ctx.arc(r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
       ctx.fill()
+      ctx.restore()
     }
-    ctx.restore()
 
     const ghostColors = ['#c2415c', '#1d6fa5', '#0d8064']
     for (let i = 0; i < state.ghosts.length; i++) {
