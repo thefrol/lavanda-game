@@ -16,7 +16,7 @@ npm run dev
 
 ## Своя фотография Лаванды
 
-Именно [`public/lavanda.png`](public/lavanda.png) попадает в игру и в сборку. Можно положить туда квадратное фото (~512px по длинной стороне достаточно для спрайта). Корневой `lavanda.png` в репозитории — отдельная копия; при смене фото обновляйте **`public/lavanda.png`**, иначе на сайте останется старый спрайт.
+Спрайт героя в игре: [`public/lavanda_zoomed.png`](public/lavanda_zoomed.png) (крупный кадр). Исходник можно держать в корне как [`lavanda_zoomed.png`](lavanda_zoomed.png); для веба удобно ужать длинную сторону до ~512px, например: `sips -Z 512 lavanda_zoomed.png --out public/lavanda_zoomed.png`. Старый [`public/lavanda.png`](public/lavanda.png) в репо можно оставить или удалить — в коде он больше не используется.
 
 Иконки PWA (favicon, **На экран «Домой»**, манифест) — квадратные PNG из **корневого** [`lavanda.png`](lavanda.png) (полное фото):
 

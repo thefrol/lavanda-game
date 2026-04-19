@@ -163,7 +163,7 @@ function boot(
   const map = parseMap(RAW_MAP)
   const hero = new Image()
   hero.decoding = 'async'
-  hero.src = `${import.meta.env.BASE_URL}lavanda.png`
+  hero.src = `${import.meta.env.BASE_URL}lavanda_zoomed.png`
 
   let cell = 22
   let dpr = Math.min(window.devicePixelRatio ?? 1, 2)
