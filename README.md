@@ -21,8 +21,8 @@ npm run dev
 ## Публикация на GitHub Pages
 
 1. Репозиторий: [thefrol/lavanda-game](https://github.com/thefrol/lavanda-game). **Имя репо совпадает с `base` в `vite.config.ts`** (`/lavanda-game/`).
-2. В настройках репозитория: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Пуш в ветку `main` запускает [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) и публикует `dist`.
+2. Один раз в репозитории: **Settings → Pages → Build and deployment → Source: GitHub Actions** (без публикации «с ветки» из корня `main`, иначе на сайте будет исходник, а не `dist`).
+3. Любой пуш в **`main`** запускает [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml): `npm ci` → `npm run build` → выкладка содержимого **`dist/`** на Pages.
 4. Игра: **https://thefrol.github.io/lavanda-game/**
 
 ## iPhone: добавить на экран «Домой»
