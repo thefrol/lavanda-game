@@ -281,11 +281,11 @@ function boot(
     const h = map.height * cell
     ctx.clearRect(0, 0, w, h)
 
-    ctx.fillStyle = '#1a0f2e'
+    ctx.fillStyle = '#e8e4f0'
     ctx.fillRect(0, 0, w, h)
 
     const pad = cell * 0.12
-    ctx.fillStyle = '#4c1d95'
+    ctx.fillStyle = '#5c5470'
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (!map.wall[y][x]) continue
@@ -295,8 +295,8 @@ function boot(
       }
     }
 
-    ctx.fillStyle = '#fde68a'
-    const r = Math.max(1.5, cell * 0.1)
+    ctx.fillStyle = '#7c5a12'
+    const r = Math.max(1.8, cell * 0.11)
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (!map.dot[y][x]) continue
@@ -331,11 +331,11 @@ function boot(
       ctx.drawImage(hero, -hw / 2, -hh / 2, hw, hh)
     } else {
       const r0 = heroMax * 0.48
-      ctx.fillStyle = '#c4b5fd'
+      ctx.fillStyle = '#4b5563'
       ctx.beginPath()
       ctx.ellipse(0, 0, r0 * 0.94, r0 * 0.9, 0, 0, Math.PI * 2)
       ctx.fill()
-      ctx.fillStyle = '#1a0f2e'
+      ctx.fillStyle = '#e8e4f0'
       ctx.beginPath()
       ctx.arc(-r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
       ctx.arc(r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
@@ -343,7 +343,7 @@ function boot(
     }
     ctx.restore()
 
-    const ghostColors = ['#fb7185', '#38bdf8', '#34d399']
+    const ghostColors = ['#c2415c', '#1d6fa5', '#0d8064']
     for (let i = 0; i < state.ghosts.length; i++) {
       const g = state.ghosts[i]
       const cx = g.x * cell + cell / 2
@@ -361,12 +361,12 @@ function boot(
       ctx.lineTo(cx - rr, cy + rr * 0.9)
       ctx.closePath()
       ctx.fill()
-      ctx.fillStyle = '#fff'
+      ctx.fillStyle = '#faf8ff'
       ctx.beginPath()
       ctx.arc(cx - rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
       ctx.arc(cx + rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
       ctx.fill()
-      ctx.fillStyle = '#0f172a'
+      ctx.fillStyle = '#1e1b2e'
       ctx.beginPath()
       ctx.arc(cx - rr * 0.32, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
       ctx.arc(cx + rr * 0.38, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
@@ -374,9 +374,9 @@ function boot(
     }
 
     if (!state.alive) {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'
+      ctx.fillStyle = 'rgba(30, 27, 46, 0.55)'
       ctx.fillRect(0, 0, w, h)
-      ctx.fillStyle = '#faf5ff'
+      ctx.fillStyle = '#faf8ff'
       ctx.font = `700 ${Math.max(16, cell * 0.9)}px system-ui, sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'

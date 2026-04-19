@@ -18,7 +18,14 @@ npm run dev
 
 Именно [`public/lavanda.png`](public/lavanda.png) попадает в игру и в сборку. Можно положить туда квадратное фото (~512px по длинной стороне достаточно для спрайта). Корневой `lavanda.png` в репозитории — отдельная копия; при смене фото обновляйте **`public/lavanda.png`**, иначе на сайте останется старый спрайт.
 
-Иконки приложения: [`public/apple-touch-icon.png`](public/apple-touch-icon.png), `icon-192.png`, `icon-512.png` — сгенерировать заглушки: `python3 scripts/make_icons.py` (скрипт **не** перезаписывает `lavanda.png`).
+Иконки PWA (favicon, **На экран «Домой»**, манифест) — квадратные PNG из **корневого** [`lavanda.png`](lavanda.png) (полное фото):
+
+```bash
+npm run icons
+# или: bash scripts/sync_pwa_icons.sh /путь/к/фото.png
+```
+
+Затем коммит `public/icon-*.png` и `public/apple-touch-icon.png`. Скрипт [`scripts/make_icons.py`](scripts/make_icons.py) только создаёт `.nojekyll` для Pages.
 
 ## Публикация на GitHub Pages
 
@@ -35,12 +42,8 @@ npm run dev
 
 Повторите то же на телефоне жены, отправив ей ссылку в сообщении.
 
-## Иконки для сборки
-
-Чтобы пересоздать заглушки PNG в `public/`:
+## Только `.nojekyll` для Pages
 
 ```bash
 python3 scripts/make_icons.py
 ```
-
-Требуется только стандартная библиотека Python 3.

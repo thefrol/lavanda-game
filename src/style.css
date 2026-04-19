@@ -1,8 +1,10 @@
 :root {
   color-scheme: dark;
-  --bg: #1a0f2e;
-  --text: #f3e8ff;
-  --accent: #c4b5fd;
+  /* UI chrome around the canvas — тёмный, но не сливается с чёрной собакой на поле */
+  --bg: #2a2635;
+  --text: #f7f5fc;
+  --accent: #b8a9e8;
+  --muted: #9d94b0;
 }
 
 * {
@@ -54,7 +56,7 @@ body {
 
 #restart {
   border: 1px solid var(--accent);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
   border-radius: 999px;
   padding: 8px 16px;
@@ -71,6 +73,6 @@ body {
   max-width: 28rem;
   text-align: center;
   font-size: 0.9rem;
-  opacity: 0.85;
+  color: var(--muted);
   line-height: 1.35;
 }
