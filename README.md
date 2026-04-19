@@ -2,6 +2,9 @@
 
 Веб-игра с героем-собакой. Собрана под **GitHub Pages**: после деплоя открываете ссылку в **Safari** на iPhone и добавляете на экран «Домой» — получается иконка как у приложения.
 
+**Репозиторий:** [github.com/thefrol/lavanda-game](https://github.com/thefrol/lavanda-game)  
+**Игра (после включения Pages и успешного деплоя):** [thefrol.github.io/lavanda-game/](https://thefrol.github.io/lavanda-game/)
+
 ## Локальный запуск
 
 ```bash
@@ -17,10 +20,10 @@ npm run dev
 
 ## Публикация на GitHub Pages
 
-1. Создайте репозиторий на GitHub. **Имя репозитория должно совпадать с путём в `vite.config.ts`**: сейчас задано `base: '/lavanda-game/'` — значит репозиторий логично назвать `lavanda-game`. Если имя другое — поменяйте `base` на `/<имя-репо>/` и пересоберите.
+1. Репозиторий: [thefrol/lavanda-game](https://github.com/thefrol/lavanda-game). **Имя репо совпадает с `base` в `vite.config.ts`** (`/lavanda-game/`).
 2. В настройках репозитория: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Залейте код в ветку `main`. Workflow [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) соберёт проект и опубликует содержимое папки `dist`.
-4. Игра будет доступна по адресу: `https://<ваш-ник>.github.io/lavanda-game/` (подставьте свой логин GitHub и имя репо, если оно отличается).
+3. Пуш в ветку `main` запускает [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) и публикует `dist`.
+4. Игра: **https://thefrol.github.io/lavanda-game/**
 
 ## iPhone: добавить на экран «Домой»
 
