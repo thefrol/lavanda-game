@@ -151,6 +151,8 @@ class GameScene extends Phaser.Scene {
   private ghostStates: {
     gridX: number
     gridY: number
+    fromX: number
+    fromY: number
     dir: Dir | null
     isMoving: boolean
     sprite: Phaser.GameObjects.Sprite
@@ -168,6 +170,8 @@ class GameScene extends Phaser.Scene {
 
   // Player movement
   private playerGrid = { x: 0, y: 0 }
+  private playerFromX = 0
+  private playerFromY = 0
   private playerDir: Dir | null = null
   private queuedDir: Dir | null = null
   private isPlayerMoving = false
@@ -238,6 +242,8 @@ class GameScene extends Phaser.Scene {
       this.ghostStates.push({
         gridX: g.x,
         gridY: g.y,
+        fromX: g.x,
+        fromY: g.y,
         dir: null,
         isMoving: false,
         sprite,
@@ -499,8 +505,24 @@ class GameScene extends Phaser.Scene {
     }
 
     this.isPlayerMoving = true
+    this.playerFromX = this.playerGrid.x
+    this.playerFromY = this.playerGrid.y
     this.playerGrid.x = nx
     this.playerGrid.y = ny
+
+    // Check crossing with a moving ghost (swap-through)
+    for (const gs of this.ghostStates) {
+      if (
+        gs.isMoving &&
+        gs.fromX === nx &&
+        gs.fromY === ny &&
+        gs.gridX === this.playerFromX &&
+        gs.gridY === this.playerFromY
+      ) {
+        this.die()
+        return
+      }
+    }
 
     const targetX = nx * this.cellSize + this.cellSize / 2
     const targetY = ny * this.cellSize + this.cellSize / 2
@@ -601,9 +623,23 @@ class GameScene extends Phaser.Scene {
 
       const { dx, dy } = DIR_VEC[d]
       gs.dir = d
+      gs.fromX = gs.gridX
+      gs.fromY = gs.gridY
       gs.gridX += dx
       gs.gridY += dy
       gs.isMoving = true
+
+      // Check crossing with a moving player (swap-through)
+      if (
+        this.isPlayerMoving &&
+        this.playerFromX === gs.gridX &&
+        this.playerFromY === gs.gridY &&
+        this.playerGrid.x === gs.fromX &&
+        this.playerGrid.y === gs.fromY
+      ) {
+        this.die()
+        return
+      }
 
       const targetX = gs.gridX * this.cellSize + this.cellSize / 2
       const targetY = gs.gridY * this.cellSize + this.cellSize / 2
@@ -628,13 +664,18 @@ class GameScene extends Phaser.Scene {
     if (!this.alive) return
     for (const gs of this.ghostStates) {
       if (gs.gridX === this.playerGrid.x && gs.gridY === this.playerGrid.y) {
-        this.alive = false
-        this.playerDir = null
-        this.restartBtn.hidden = false
-        this.showOverlay()
+        this.die()
         break
       }
     }
+  }
+
+  private die() {
+    if (!this.alive) return
+    this.alive = false
+    this.playerDir = null
+    this.restartBtn.hidden = false
+    this.showOverlay()
   }
 
   private reset() {
@@ -657,6 +698,8 @@ class GameScene extends Phaser.Scene {
       const gs = this.ghostStates[i]
       gs.gridX = fresh.ghosts[i].x
       gs.gridY = fresh.ghosts[i].y
+      gs.fromX = fresh.ghosts[i].x
+      gs.fromY = fresh.ghosts[i].y
       gs.dir = null
       gs.isMoving = false
       gs.sprite.setPosition(
