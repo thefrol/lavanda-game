@@ -37,7 +37,7 @@ const RAW_MAP_HORIZONTAL = [
   '#...#..#P#..#...#.#',
   '#.#.##.....##.#.#.#',
   '#.................#',
-  '###################',
+  '########.##########',
 ] as const
 
 function transposeMap(lines: readonly string[]): string[] {
@@ -114,8 +114,8 @@ interface Tunnel {
 }
 
 const TUNNELS: Tunnel[] = [
-  { x: 0, y: 8, dir: 'left', toX: 10, toY: 8 },
-  { x: 10, y: 8, dir: 'right', toX: 0, toY: 8 },
+  { x: 0, y: 8, dir: 'left', toX: 11, toY: 8 },
+  { x: 11, y: 8, dir: 'right', toX: 0, toY: 8 },
 ]
 
 function getTunnel(x: number, y: number, dir: Dir): Tunnel | undefined {
@@ -739,6 +739,11 @@ class GameScene extends Phaser.Scene {
     const fresh = parseMap(RAW_MAP)
     this.map.wall = fresh.wall
     this.map.dot = fresh.dot
+    for (const t of TUNNELS) {
+      if (inBounds(this.map, t.x, t.y)) {
+        this.map.dot[t.y][t.x] = false
+      }
+    }
 
     this.playerGrid = { ...fresh.player }
     this.playerDir = null
