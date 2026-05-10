@@ -1,5 +1,6 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
+import Phaser from 'phaser'
 
 registerSW({ immediate: true })
 
@@ -142,365 +143,576 @@ function pickGhostMove(
   return best
 }
 
-function main() {
-  const canvas = document.querySelector<HTMLCanvasElement>('#game')
-  const scoreEl = document.querySelector<HTMLSpanElement>('#score')
-  const restartBtn = document.querySelector<HTMLButtonElement>('#restart')
-  if (!canvas || !scoreEl || !restartBtn) return
+class GameScene extends Phaser.Scene {
+  private map!: ParsedMap
+  private cellSize = 22
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  private player!: Phaser.GameObjects.Sprite
+  private ghostStates: {
+    gridX: number
+    gridY: number
+    dir: Dir | null
+    isMoving: boolean
+    sprite: Phaser.GameObjects.Sprite
+  }[] = []
 
-  boot(canvas, ctx, scoreEl, restartBtn)
-}
+  private dotGroup!: Phaser.GameObjects.Group
+  private wallGraphics!: Phaser.GameObjects.Graphics
+  private overlayGraphics!: Phaser.GameObjects.Graphics
+  private overlayTextMain!: Phaser.GameObjects.Text
+  private overlayTextSub!: Phaser.GameObjects.Text
 
-function boot(
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  scoreEl: HTMLSpanElement,
-  restartBtn: HTMLButtonElement,
-) {
-  const map = parseMap(RAW_MAP)
-  const base = import.meta.env.BASE_URL
-  const hero = new Image()
-  hero.decoding = 'async'
-  hero.src = `${base}lavanda_zoomed.png`
+  private score = 0
+  private alive = true
+  private won = false
 
-  const treats = new Image()
-  treats.decoding = 'async'
-  treats.src = `${base}poop.png`
+  // Player movement
+  private playerGrid = { x: 0, y: 0 }
+  private playerDir: Dir | null = null
+  private queuedDir: Dir | null = null
+  private isPlayerMoving = false
 
-  const olba = new Image()
-  olba.decoding = 'async'
-  olba.src = `${base}olba.png`
+  // Timing
+  private readonly playerMoveDuration = 140
+  private readonly ghostMoveDuration = 280
+  // Input
+  private keys!: Record<string, Phaser.Input.Keyboard.Key>
 
-  let cell = 22
-  let dpr = Math.min(window.devicePixelRatio ?? 1, 2)
+  // DOM
+  private restartBtn!: HTMLButtonElement
+  private scoreEl!: HTMLSpanElement
 
-  const state = {
-    px: map.player.x,
-    py: map.player.y,
-    dir: null as Dir | null,
-    queued: null as Dir | null,
-    ghosts: map.ghosts.map((p) => ({ x: p.x, y: p.y })),
-    ghostDir: map.ghosts.map(() => null as Dir | null),
-    score: 0,
-    alive: true,
-    won: false,
-    tick: 0,
+  constructor() {
+    super({ key: 'GameScene' })
   }
 
-  function dotsLeft(): number {
-    let n = 0
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        if (map.dot[y][x]) n++
-      }
+  preload() {
+    const base = import.meta.env.BASE_URL
+    this.load.image('hero', `${base}lavanda_zoomed.png`)
+    this.load.image('treat', `${base}poop.png`)
+    this.load.image('ghost', `${base}olba.png`)
+  }
+
+  create() {
+    this.map = parseMap(RAW_MAP)
+    this.restartBtn = document.getElementById('restart') as HTMLButtonElement
+    this.scoreEl = document.getElementById('score') as HTMLSpanElement
+    this.restartBtn.hidden = true
+    this.restartBtn.onclick = () => this.reset()
+
+    this.calculateCellSize()
+    this.setGameSize()
+
+    // Background
+    this.add.rectangle(
+      (this.map.width * this.cellSize) / 2,
+      (this.map.height * this.cellSize) / 2,
+      this.map.width * this.cellSize,
+      this.map.height * this.cellSize,
+      0xe8e4f0,
+    )
+
+    // Walls
+    this.wallGraphics = this.add.graphics()
+    this.drawWalls()
+
+    // Dots
+    this.dotGroup = this.add.group()
+    this.createDots()
+
+    // Player
+    this.playerGrid = { ...this.map.player }
+    const px = this.map.player.x * this.cellSize + this.cellSize / 2
+    const py = this.map.player.y * this.cellSize + this.cellSize / 2
+    this.player = this.add.sprite(px, py, 'hero')
+    this.setHeroSize()
+
+    // Ghosts
+    this.ghostStates = []
+    for (let i = 0; i < this.map.ghosts.length; i++) {
+      const g = this.map.ghosts[i]
+      const gx = g.x * this.cellSize + this.cellSize / 2
+      const gy = g.y * this.cellSize + this.cellSize / 2
+      const sprite = this.add.sprite(gx, gy, 'ghost')
+      this.setGhostSize(sprite)
+      this.ghostStates.push({
+        gridX: g.x,
+        gridY: g.y,
+        dir: null,
+        isMoving: false,
+        sprite,
+      })
     }
-    return n
+
+    // Overlay
+    this.overlayGraphics = this.add.graphics()
+    this.overlayTextMain = this.add.text(0, 0, '', {
+      fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
+      color: '#faf8ff',
+      fontStyle: 'bold',
+    })
+    this.overlayTextMain.setOrigin(0.5)
+    this.overlayTextSub = this.add.text(0, 0, 'Нажми «Перезапуск»', {
+      fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
+      color: '#faf8ff',
+      fontStyle: 'normal',
+    })
+    this.overlayTextSub.setOrigin(0.5)
+    this.hideOverlay()
+
+    // Keyboard
+    this.keys = this.input.keyboard!.addKeys(
+      'W,A,S,D,UP,DOWN,LEFT,RIGHT',
+    ) as Record<string, Phaser.Input.Keyboard.Key>
+
+    // Touch / swipe
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event.stopPropagation()
+    })
+
+    let touchOx = 0
+    let touchOy = 0
+    this.input.on(
+      'pointerdown',
+      (pointer: Phaser.Input.Pointer) => {
+        touchOx = pointer.x
+        touchOy = pointer.y
+      },
+      this,
+    )
+    this.input.on(
+      'pointerup',
+      (pointer: Phaser.Input.Pointer) => {
+        const dx = pointer.x - touchOx
+        const dy = pointer.y - touchOy
+        const t = 28
+        if (Math.abs(dx) < t && Math.abs(dy) < t) return
+        if (Math.abs(dx) > Math.abs(dy)) this.tryQueue(dx > 0 ? 'right' : 'left')
+        else this.tryQueue(dy > 0 ? 'down' : 'up')
+      },
+      this,
+    )
+
+    // Ghost step timer
+    this.time.addEvent({
+      delay: this.ghostMoveDuration,
+      callback: this.stepGhosts,
+      callbackScope: this,
+      loop: true,
+    })
+
+    // Window resize
+    window.addEventListener('resize', () => this.handleResize())
   }
 
-  function resize() {
+  // ---------- sizing ----------
+
+  private calculateCellSize() {
     const padX = 20
     const padY = 16
     const belowCanvas = 112
     const availW = Math.max(120, window.innerWidth - padX)
     const availH = Math.max(160, window.innerHeight - padY - belowCanvas)
-    const cw = Math.floor(availW / map.width)
-    const ch = Math.floor(availH / map.height)
+    const cw = Math.floor(availW / this.map.width)
+    const ch = Math.floor(availH / this.map.height)
     const portrait = window.innerHeight >= window.innerWidth
     const cap = portrait ? 36 : 32
-    cell = Math.min(cw, ch, cap)
-    cell = Math.max(cell, 15)
-    dpr = Math.min(window.devicePixelRatio ?? 1, 2)
-    const w = map.width * cell
-    const h = map.height * cell
-    canvas.style.width = `${w}px`
-    canvas.style.height = `${h}px`
-    canvas.width = Math.floor(w * dpr)
-    canvas.height = Math.floor(h * dpr)
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    this.cellSize = Math.min(cw, ch, cap)
+    this.cellSize = Math.max(this.cellSize, 15)
   }
 
-  function tryStartMove(d: Dir) {
-    if (!state.alive) return
-    const { dx, dy } = DIR_VEC[d]
-    if (walkable(map, state.px + dx, state.py + dy)) {
-      state.dir = d
-      state.queued = null
-    } else {
-      state.queued = d
-    }
+  private setGameSize() {
+    const w = this.map.width * this.cellSize
+    const h = this.map.height * this.cellSize
+    this.scale.setGameSize(w, h)
   }
 
-  function stepPlayer() {
-    if (!state.alive || state.won) return
+  private handleResize() {
+    this.tweens.killAll()
+    this.isPlayerMoving = false
+    for (const gs of this.ghostStates) gs.isMoving = false
 
-    if (state.queued) {
-      const { dx, dy } = DIR_VEC[state.queued]
-      if (walkable(map, state.px + dx, state.py + dy)) {
-        state.dir = state.queued
-        state.queued = null
+    this.calculateCellSize()
+    this.setGameSize()
+    this.drawWalls()
+    this.repositionDots()
+    this.repositionEntities()
+    this.updateOverlay()
+  }
+
+  // ---------- rendering helpers ----------
+
+  private drawWalls() {
+    this.wallGraphics.clear()
+    const pad = this.cellSize * 0.12
+    this.wallGraphics.fillStyle(0x5c5470)
+    for (let y = 0; y < this.map.height; y++) {
+      for (let x = 0; x < this.map.width; x++) {
+        if (!this.map.wall[y][x]) continue
+        const rx = x * this.cellSize + pad
+        const ry = y * this.cellSize + pad
+        const rw = this.cellSize - pad * 2
+        const rh = this.cellSize - pad * 2
+        this.wallGraphics.fillRoundedRect(rx, ry, rw, rh, this.cellSize * 0.22)
       }
     }
+  }
 
-    if (!state.dir) return
-    const { dx, dy } = DIR_VEC[state.dir]
-    const nx = state.px + dx
-    const ny = state.py + dy
-    if (!walkable(map, nx, ny)) {
-      state.dir = null
+  private createDots() {
+    this.dotGroup.clear(true, true)
+    const treatMax = this.cellSize * 0.52
+    for (let y = 0; y < this.map.height; y++) {
+      for (let x = 0; x < this.map.width; x++) {
+        if (!this.map.dot[y][x]) continue
+        const cx = x * this.cellSize + this.cellSize / 2
+        const cy = y * this.cellSize + this.cellSize / 2
+        const dot = this.add.sprite(cx, cy, 'treat')
+        dot.setDisplaySize(treatMax, treatMax)
+        dot.setData('gridX', x)
+        dot.setData('gridY', y)
+        this.dotGroup.add(dot)
+      }
+    }
+  }
+
+  private repositionDots() {
+    this.dotGroup.clear(true, true)
+    this.createDots()
+  }
+
+  private setHeroSize() {
+    const heroMax = this.cellSize * 1.22
+    const tex = this.textures.get('hero')
+    const frame = tex.getSourceImage() as HTMLImageElement
+    if (!frame || frame.width === 0) {
+      this.player.setDisplaySize(heroMax, heroMax)
       return
     }
-    state.px = nx
-    state.py = ny
-    if (map.dot[ny][nx]) {
-      map.dot[ny][nx] = false
-      state.score += 10
-      scoreEl.textContent = String(state.score)
-      if (dotsLeft() === 0) {
-        state.won = true
-        state.alive = false
-        restartBtn.hidden = false
-      }
-    }
-  }
-
-  function stepGhosts() {
-    if (!state.alive || state.won) return
-    for (let i = 0; i < state.ghosts.length; i++) {
-      const g = state.ghosts[i]
-      const d = pickGhostMove(map, g, state.ghostDir[i], { x: state.px, y: state.py })
-      if (!d) continue
-      const { dx, dy } = DIR_VEC[d]
-      state.ghostDir[i] = d
-      g.x += dx
-      g.y += dy
-    }
-    for (const g of state.ghosts) {
-      if (g.x === state.px && g.y === state.py) {
-        state.alive = false
-        restartBtn.hidden = false
-      }
-    }
-  }
-
-  function draw() {
-    const w = map.width * cell
-    const h = map.height * cell
-    ctx.clearRect(0, 0, w, h)
-
-    ctx.fillStyle = '#e8e4f0'
-    ctx.fillRect(0, 0, w, h)
-
-    const pad = cell * 0.12
-    ctx.fillStyle = '#5c5470'
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        if (!map.wall[y][x]) continue
-        ctx.beginPath()
-        ctx.roundRect(x * cell + pad, y * cell + pad, cell - pad * 2, cell - pad * 2, cell * 0.22)
-        ctx.fill()
-      }
-    }
-
-    const treatMax = cell * 0.52
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        if (!map.dot[y][x]) continue
-        const cx = x * cell + cell / 2
-        const cy = y * cell + cell / 2
-        if (treats.complete && treats.naturalWidth > 0) {
-          const ar = treats.naturalWidth / treats.naturalHeight
-          let tw = treatMax
-          let th = treatMax
-          if (ar >= 1) {
-            tw = treatMax
-            th = treatMax / ar
-          } else {
-            th = treatMax
-            tw = treatMax * ar
-          }
-          ctx.drawImage(treats, cx - tw / 2, cy - th / 2, tw, th)
-        } else {
-          const r = Math.max(1.8, cell * 0.11)
-          ctx.fillStyle = '#7c5a12'
-          ctx.beginPath()
-          ctx.arc(cx, cy, r, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
-
-    const gx = state.px * cell + cell / 2
-    const gy = state.py * cell + cell / 2
-    const heroMax = cell * 1.22
-    let hw = heroMax
-    let hh = heroMax
-    if (hero.complete && hero.naturalWidth > 0) {
-      const ar = hero.naturalWidth / hero.naturalHeight
-      if (ar >= 1) {
-        hw = heroMax
-        hh = heroMax / ar
-      } else {
-        hh = heroMax
-        hw = heroMax * ar
-      }
-    }
-    if (hero.complete && hero.naturalWidth > 0) {
-      ctx.drawImage(hero, gx - hw / 2, gy - hh / 2, hw, hh)
+    const ar = frame.width / frame.height
+    let w = heroMax
+    let h = heroMax
+    if (ar >= 1) {
+      w = heroMax
+      h = heroMax / ar
     } else {
-      ctx.save()
-      ctx.translate(gx, gy)
-      const r0 = heroMax * 0.48
-      ctx.fillStyle = '#4b5563'
-      ctx.beginPath()
-      ctx.ellipse(0, 0, r0 * 0.94, r0 * 0.9, 0, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#e8e4f0'
-      ctx.beginPath()
-      ctx.arc(-r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
-      ctx.arc(r0 * 0.28, -r0 * 0.12, r0 * 0.14, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
+      h = heroMax
+      w = heroMax * ar
+    }
+    this.player.setDisplaySize(w, h)
+  }
+
+  private setGhostSize(sprite: Phaser.GameObjects.Sprite) {
+    const ghostMax = this.cellSize * 1.02
+    const tex = this.textures.get('ghost')
+    const frame = tex.getSourceImage() as HTMLImageElement
+    if (!frame || frame.width === 0) {
+      sprite.setDisplaySize(ghostMax, ghostMax)
+      return
+    }
+    const ar = frame.width / frame.height
+    let w = ghostMax
+    let h = ghostMax
+    if (ar >= 1) {
+      w = ghostMax
+      h = ghostMax / ar
+    } else {
+      h = ghostMax
+      w = ghostMax * ar
+    }
+    sprite.setDisplaySize(w, h)
+  }
+
+  private repositionEntities() {
+    const px = this.playerGrid.x * this.cellSize + this.cellSize / 2
+    const py = this.playerGrid.y * this.cellSize + this.cellSize / 2
+    this.player.setPosition(px, py)
+    this.setHeroSize()
+
+    for (const gs of this.ghostStates) {
+      const gx = gs.gridX * this.cellSize + this.cellSize / 2
+      const gy = gs.gridY * this.cellSize + this.cellSize / 2
+      gs.sprite.setPosition(gx, gy)
+      this.setGhostSize(gs.sprite)
+    }
+  }
+
+  // ---------- overlay ----------
+
+  private showOverlay() {
+    const w = this.map.width * this.cellSize
+    const h = this.map.height * this.cellSize
+
+    this.overlayGraphics.clear()
+    this.overlayGraphics.fillStyle(0x1e1b2e, 0.55)
+    this.overlayGraphics.fillRect(0, 0, w, h)
+
+    const msg = this.won ? 'Победа!' : 'Ой, Ольба!'
+    this.overlayTextMain.setText(msg)
+    this.overlayTextMain.setFontSize(Math.max(16, this.cellSize * 0.9))
+    this.overlayTextMain.setPosition(w / 2, h / 2 - this.cellSize * 0.35)
+
+    this.overlayTextSub.setFontSize(Math.max(12, this.cellSize * 0.45))
+    this.overlayTextSub.setPosition(w / 2, h / 2 + this.cellSize * 0.55)
+
+    this.overlayGraphics.setVisible(true)
+    this.overlayTextMain.setVisible(true)
+    this.overlayTextSub.setVisible(true)
+  }
+
+  private hideOverlay() {
+    this.overlayGraphics.setVisible(false)
+    this.overlayTextMain.setVisible(false)
+    this.overlayTextSub.setVisible(false)
+  }
+
+  private updateOverlay() {
+    if (!this.alive) this.showOverlay()
+  }
+
+  // ---------- game logic ----------
+
+  private tryQueue(d: Dir) {
+    if (!this.alive || this.won) return
+
+    // If stopped, try to start immediately
+    if (!this.playerDir && !this.isPlayerMoving) {
+      const { dx, dy } = DIR_VEC[d]
+      if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy)) {
+        this.playerDir = d
+        this.startPlayerMove()
+      } else {
+        this.queuedDir = d
+      }
+      return
     }
 
-    const ghostMax = cell * 1.02
-    for (let i = 0; i < state.ghosts.length; i++) {
-      const g = state.ghosts[i]
-      const cx = g.x * cell + cell / 2
-      const cy = g.y * cell + cell / 2
-      if (olba.complete && olba.naturalWidth > 0) {
-        const ar = olba.naturalWidth / olba.naturalHeight
-        let ow = ghostMax
-        let oh = ghostMax
-        if (ar >= 1) {
-          ow = ghostMax
-          oh = ghostMax / ar
-        } else {
-          oh = ghostMax
-          ow = ghostMax * ar
+    this.queuedDir = d
+  }
+
+  private startPlayerMove() {
+    if (!this.playerDir || this.isPlayerMoving || !this.alive || this.won) return
+
+    const { dx, dy } = DIR_VEC[this.playerDir]
+    const nx = this.playerGrid.x + dx
+    const ny = this.playerGrid.y + dy
+
+    if (!walkable(this.map, nx, ny)) {
+      this.playerDir = null
+      this.tryApplyQueuedDir()
+      return
+    }
+
+    this.isPlayerMoving = true
+    this.playerGrid.x = nx
+    this.playerGrid.y = ny
+
+    const targetX = nx * this.cellSize + this.cellSize / 2
+    const targetY = ny * this.cellSize + this.cellSize / 2
+
+    this.tweens.add({
+      targets: this.player,
+      x: targetX,
+      y: targetY,
+      duration: this.playerMoveDuration,
+      ease: 'Linear',
+      onComplete: () => {
+        this.isPlayerMoving = false
+        this.onPlayerReachedCell(nx, ny)
+        if (this.playerDir) {
+          this.startPlayerMove()
         }
-        ctx.drawImage(olba, cx - ow / 2, cy - oh / 2, ow, oh)
-      } else {
-        const rr = cell * 0.44
-        const ghostColors = ['#c2415c', '#1d6fa5', '#0d8064']
-        ctx.fillStyle = ghostColors[i % ghostColors.length]
-        ctx.beginPath()
-        ctx.arc(cx, cy - rr * 0.1, rr, Math.PI, 0)
-        ctx.lineTo(cx + rr, cy + rr * 0.9)
-        ctx.lineTo(cx + rr * 0.66, cy + rr * 0.55)
-        ctx.lineTo(cx + rr * 0.33, cy + rr * 0.95)
-        ctx.lineTo(cx, cy + rr * 0.55)
-        ctx.lineTo(cx - rr * 0.33, cy + rr * 0.95)
-        ctx.lineTo(cx - rr * 0.66, cy + rr * 0.55)
-        ctx.lineTo(cx - rr, cy + rr * 0.9)
-        ctx.closePath()
-        ctx.fill()
-        ctx.fillStyle = '#faf8ff'
-        ctx.beginPath()
-        ctx.arc(cx - rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
-        ctx.arc(cx + rr * 0.35, cy - rr * 0.05, rr * 0.18, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.fillStyle = '#1e1b2e'
-        ctx.beginPath()
-        ctx.arc(cx - rr * 0.32, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
-        ctx.arc(cx + rr * 0.38, cy - rr * 0.02, rr * 0.08, 0, Math.PI * 2)
-        ctx.fill()
+      },
+    })
+  }
+
+  private tryApplyQueuedDir() {
+    if (!this.queuedDir) return
+    const { dx, dy } = DIR_VEC[this.queuedDir]
+    if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy)) {
+      this.playerDir = this.queuedDir
+      this.queuedDir = null
+      this.startPlayerMove()
+    }
+  }
+
+  private onPlayerReachedCell(x: number, y: number) {
+    // Apply queued turn if possible
+    if (this.queuedDir) {
+      const { dx, dy } = DIR_VEC[this.queuedDir]
+      if (walkable(this.map, x + dx, y + dy)) {
+        this.playerDir = this.queuedDir
+        this.queuedDir = null
       }
     }
 
-    if (!state.alive) {
-      ctx.fillStyle = 'rgba(30, 27, 46, 0.55)'
-      ctx.fillRect(0, 0, w, h)
-      ctx.fillStyle = '#faf8ff'
-      ctx.font = `700 ${Math.max(16, cell * 0.9)}px system-ui, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      const msg = state.won ? 'Победа!' : 'Ой, Ольба!'
-      ctx.fillText(msg, w / 2, h / 2 - cell * 0.35)
-      ctx.font = `500 ${Math.max(12, cell * 0.45)}px system-ui, sans-serif`
-      ctx.fillText('Нажми «Перезапуск»', w / 2, h / 2 + cell * 0.55)
+    // Collect dot
+    if (this.map.dot[y][x]) {
+      this.map.dot[y][x] = false
+      this.score += 10
+      this.scoreEl.textContent = String(this.score)
+
+      const dots = this.dotGroup.getChildren() as Phaser.GameObjects.Sprite[]
+      for (const dot of dots) {
+        if (dot.getData('gridX') === x && dot.getData('gridY') === y) {
+          // Pop animation then destroy
+          this.tweens.add({
+            targets: dot,
+            scale: 1.6,
+            alpha: 0,
+            duration: 120,
+            onComplete: () => dot.destroy(),
+          })
+          break
+        }
+      }
+
+      if (this.dotsLeft() === 0) {
+        this.won = true
+        this.alive = false
+        this.playerDir = null
+        this.restartBtn.hidden = false
+        this.showOverlay()
+      }
+    }
+
+    this.checkGhostCollision()
+  }
+
+  private dotsLeft(): number {
+    let n = 0
+    for (let y = 0; y < this.map.height; y++) {
+      for (let x = 0; x < this.map.width; x++) {
+        if (this.map.dot[y][x]) n++
+      }
+    }
+    return n
+  }
+
+  private stepGhosts() {
+    if (!this.alive || this.won) return
+
+    for (let i = 0; i < this.ghostStates.length; i++) {
+      const gs = this.ghostStates[i]
+      if (gs.isMoving) continue
+
+      const d = pickGhostMove(
+        this.map,
+        { x: gs.gridX, y: gs.gridY },
+        gs.dir,
+        { x: this.playerGrid.x, y: this.playerGrid.y },
+      )
+      if (!d) continue
+
+      const { dx, dy } = DIR_VEC[d]
+      gs.dir = d
+      gs.gridX += dx
+      gs.gridY += dy
+      gs.isMoving = true
+
+      const targetX = gs.gridX * this.cellSize + this.cellSize / 2
+      const targetY = gs.gridY * this.cellSize + this.cellSize / 2
+
+      this.tweens.add({
+        targets: gs.sprite,
+        x: targetX,
+        y: targetY,
+        duration: this.ghostMoveDuration,
+        ease: 'Linear',
+        onComplete: () => {
+          gs.isMoving = false
+          this.checkGhostCollision()
+        },
+      })
+    }
+
+    this.checkGhostCollision()
+  }
+
+  private checkGhostCollision() {
+    if (!this.alive) return
+    for (const gs of this.ghostStates) {
+      if (gs.gridX === this.playerGrid.x && gs.gridY === this.playerGrid.y) {
+        this.alive = false
+        this.playerDir = null
+        this.restartBtn.hidden = false
+        this.showOverlay()
+        break
+      }
     }
   }
 
-  function reset() {
+  private reset() {
+    this.tweens.killAll()
+
     const fresh = parseMap(RAW_MAP)
-    map.wall = fresh.wall
-    map.dot = fresh.dot
-    state.px = fresh.player.x
-    state.py = fresh.player.y
-    state.dir = null
-    state.queued = null
-    state.ghosts = fresh.ghosts.map((p) => ({ x: p.x, y: p.y }))
-    state.ghostDir = fresh.ghosts.map(() => null)
-    state.score = 0
-    state.alive = true
-    state.won = false
-    state.tick = 0
-    scoreEl.textContent = '0'
-    restartBtn.hidden = true
+    this.map.wall = fresh.wall
+    this.map.dot = fresh.dot
+
+    this.playerGrid = { ...fresh.player }
+    this.playerDir = null
+    this.queuedDir = null
+    this.isPlayerMoving = false
+    this.player.setPosition(
+      fresh.player.x * this.cellSize + this.cellSize / 2,
+      fresh.player.y * this.cellSize + this.cellSize / 2,
+    )
+
+    for (let i = 0; i < this.ghostStates.length; i++) {
+      const gs = this.ghostStates[i]
+      gs.gridX = fresh.ghosts[i].x
+      gs.gridY = fresh.ghosts[i].y
+      gs.dir = null
+      gs.isMoving = false
+      gs.sprite.setPosition(
+        gs.gridX * this.cellSize + this.cellSize / 2,
+        gs.gridY * this.cellSize + this.cellSize / 2,
+      )
+    }
+
+    this.score = 0
+    this.alive = true
+    this.won = false
+    this.scoreEl.textContent = '0'
+    this.restartBtn.hidden = true
+    this.hideOverlay()
+
+    this.dotGroup.clear(true, true)
+    this.createDots()
   }
 
-  restartBtn.addEventListener('click', () => {
-    reset()
-    draw()
-  })
+  update() {
+    if (!this.alive || this.won) return
 
-  window.addEventListener('keydown', (e) => {
-    const k = e.key
-    if (k === 'ArrowUp' || k === 'w' || k === 'W') tryStartMove('up')
-    if (k === 'ArrowRight' || k === 'd' || k === 'D') tryStartMove('right')
-    if (k === 'ArrowDown' || k === 's' || k === 'S') tryStartMove('down')
-    if (k === 'ArrowLeft' || k === 'a' || k === 'A') tryStartMove('left')
-  })
+    if (this.keys.UP?.isDown || this.keys.W?.isDown) this.tryQueue('up')
+    if (this.keys.DOWN?.isDown || this.keys.S?.isDown) this.tryQueue('down')
+    if (this.keys.LEFT?.isDown || this.keys.A?.isDown) this.tryQueue('left')
+    if (this.keys.RIGHT?.isDown || this.keys.D?.isDown) this.tryQueue('right')
+  }
+}
 
-  let touchOx = 0
-  let touchOy = 0
-  canvas.addEventListener(
-    'touchstart',
-    (e) => {
-      if (e.touches.length !== 1) return
-      touchOx = e.touches[0].clientX
-      touchOy = e.touches[0].clientY
+function main() {
+  const parent = document.getElementById('game')
+  if (!parent) return
+
+  // Initial size estimate; scene recalculates on boot
+  new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    width: 264,
+    height: 418,
+    backgroundColor: '#e8e4f0',
+    scale: {
+      mode: Phaser.Scale.NONE,
     },
-    { passive: true },
-  )
-  canvas.addEventListener(
-    'touchend',
-    (e) => {
-      if (!e.changedTouches[0]) return
-      const dx = e.changedTouches[0].clientX - touchOx
-      const dy = e.changedTouches[0].clientY - touchOy
-      const t = 28
-      if (Math.abs(dx) < t && Math.abs(dy) < t) return
-      if (Math.abs(dx) > Math.abs(dy)) tryStartMove(dx > 0 ? 'right' : 'left')
-      else tryStartMove(dy > 0 ? 'down' : 'up')
+    scene: GameScene,
+    input: {
+      touch: { capture: false },
     },
-    { passive: true },
-  )
-
-  resize()
-  window.addEventListener('resize', () => {
-    resize()
-    draw()
+    render: {
+      pixelArt: false,
+      antialias: true,
+    },
   })
-
-  hero.addEventListener('load', draw)
-  treats.addEventListener('load', draw)
-  olba.addEventListener('load', draw)
-
-  setInterval(() => {
-    const playing = state.alive && !state.won
-    if (playing) {
-      state.tick++
-      if (state.tick % 2 === 0) stepGhosts()
-      stepPlayer()
-    }
-    draw()
-  }, 150)
-
-  draw()
 }
 
 main()

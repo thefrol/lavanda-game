@@ -36,13 +36,13 @@ body {
 }
 
 #game {
-  width: auto;
+  display: inline-block;
   max-width: calc(100vw - 24px);
-  height: auto;
-  display: block;
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   touch-action: none;
+  overflow: hidden;
+  line-height: 0;
 }
 
 #hud {
