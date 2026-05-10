@@ -25,7 +25,7 @@ function opposite(a: Dir, b: Dir): boolean {
 
 /** Horizontal definition; playfield is transposed so the maze is tall on phones. */
 const RAW_MAP_HORIZONTAL = [
-  '###################',
+  '########.##########',
   '#.................#',
   '#.###.#.#.#.###.#.#',
   '#.....G..G..G.....#',
@@ -104,6 +104,27 @@ function walkable(m: ParsedMap, x: number, y: number): boolean {
   return inBounds(m, x, y) && !m.wall[y][x]
 }
 
+interface Tunnel {
+  x: number
+  y: number
+  dir: Dir
+  toX: number
+  toY: number
+}
+
+const TUNNELS: Tunnel[] = [
+  { x: 0, y: 8, dir: 'left', toX: 10, toY: 8 },
+  { x: 10, y: 8, dir: 'right', toX: 0, toY: 8 },
+]
+
+function getTunnel(x: number, y: number, dir: Dir): Tunnel | undefined {
+  return TUNNELS.find((t) => t.x === x && t.y === y && t.dir === dir)
+}
+
+function isTunnelExit(x: number, y: number, dir: Dir): boolean {
+  return TUNNELS.some((t) => t.x === x && t.y === y && t.dir === dir)
+}
+
 function pickGhostMove(
   m: ParsedMap,
   g: { x: number; y: number },
@@ -114,12 +135,12 @@ function pickGhostMove(
   for (const d of DIR_ORDER) {
     const { dx, dy } = DIR_VEC[d]
     if (last && opposite(last, d)) continue
-    if (walkable(m, g.x + dx, g.y + dy)) options.push(d)
+    if (isTunnelExit(g.x, g.y, d) || walkable(m, g.x + dx, g.y + dy)) options.push(d)
   }
   if (options.length === 0) {
     for (const d of DIR_ORDER) {
       const { dx, dy } = DIR_VEC[d]
-      if (walkable(m, g.x + dx, g.y + dy)) options.push(d)
+      if (isTunnelExit(g.x, g.y, d) || walkable(m, g.x + dx, g.y + dy)) options.push(d)
     }
   }
   if (options.length === 0) return null
@@ -225,7 +246,7 @@ function boot(
   function tryStartMove(d: Dir) {
     if (!state.alive) return
     const { dx, dy } = DIR_VEC[d]
-    if (walkable(map, state.px + dx, state.py + dy)) {
+    if (isTunnelExit(state.px, state.py, d) || walkable(map, state.px + dx, state.py + dy)) {
       state.dir = d
       state.queued = null
     } else {
@@ -238,7 +259,7 @@ function boot(
 
     if (state.queued) {
       const { dx, dy } = DIR_VEC[state.queued]
-      if (walkable(map, state.px + dx, state.py + dy)) {
+      if (isTunnelExit(state.px, state.py, state.queued) || walkable(map, state.px + dx, state.py + dy)) {
         state.dir = state.queued
         state.queued = null
       }
@@ -248,6 +269,24 @@ function boot(
     const { dx, dy } = DIR_VEC[state.dir]
     const nx = state.px + dx
     const ny = state.py + dy
+
+    const tunnel = getTunnel(state.px, state.py, state.dir)
+    if (tunnel) {
+      state.px = tunnel.toX
+      state.py = tunnel.toY
+      if (map.dot[tunnel.toY][tunnel.toX]) {
+        map.dot[tunnel.toY][tunnel.toX] = false
+        state.score += 10
+        scoreEl.textContent = String(state.score)
+        if (dotsLeft() === 0) {
+          state.won = true
+          state.alive = false
+          restartBtn.hidden = false
+        }
+      }
+      return
+    }
+
     if (!walkable(map, nx, ny)) {
       state.dir = null
       return
@@ -274,8 +313,14 @@ function boot(
       if (!d) continue
       const { dx, dy } = DIR_VEC[d]
       state.ghostDir[i] = d
-      g.x += dx
-      g.y += dy
+      const tunnel = getTunnel(g.x, g.y, d)
+      if (tunnel) {
+        g.x = tunnel.toX
+        g.y = tunnel.toY
+      } else {
+        g.x += dx
+        g.y += dy
+      }
     }
     for (const g of state.ghosts) {
       if (g.x === state.px && g.y === state.py) {
