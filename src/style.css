@@ -43,6 +43,13 @@ body {
   touch-action: none;
   overflow: hidden;
   line-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#game canvas {
+  touch-action: none;
+  display: block;
 }
 
 #hud {

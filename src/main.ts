@@ -266,10 +266,6 @@ class GameScene extends Phaser.Scene {
     ) as Record<string, Phaser.Input.Keyboard.Key>
 
     // Touch / swipe
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      pointer.event.stopPropagation()
-    })
-
     let touchOx = 0
     let touchOy = 0
     this.input.on(
@@ -706,7 +702,7 @@ function main() {
     },
     scene: GameScene,
     input: {
-      touch: { capture: false },
+      touch: { capture: true },
     },
     render: {
       pixelArt: false,
