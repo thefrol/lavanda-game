@@ -26,7 +26,7 @@ function opposite(a: Dir, b: Dir): boolean {
 
 /** Horizontal definition; playfield is transposed so the maze is tall on phones. */
 const RAW_MAP_HORIZONTAL = [
-  '###################',
+  '########.##########',
   '#.................#',
   '#.###.#.#.#.###.#.#',
   '#.....G..G..G.....#',
@@ -105,6 +105,27 @@ function walkable(m: ParsedMap, x: number, y: number): boolean {
   return inBounds(m, x, y) && !m.wall[y][x]
 }
 
+interface Tunnel {
+  x: number
+  y: number
+  dir: Dir
+  toX: number
+  toY: number
+}
+
+const TUNNELS: Tunnel[] = [
+  { x: 0, y: 8, dir: 'left', toX: 10, toY: 8 },
+  { x: 10, y: 8, dir: 'right', toX: 0, toY: 8 },
+]
+
+function getTunnel(x: number, y: number, dir: Dir): Tunnel | undefined {
+  return TUNNELS.find((t) => t.x === x && t.y === y && t.dir === dir)
+}
+
+function isTunnelExit(x: number, y: number, dir: Dir): boolean {
+  return TUNNELS.some((t) => t.x === x && t.y === y && t.dir === dir)
+}
+
 function pickGhostMove(
   m: ParsedMap,
   g: { x: number; y: number },
@@ -115,12 +136,12 @@ function pickGhostMove(
   for (const d of DIR_ORDER) {
     const { dx, dy } = DIR_VEC[d]
     if (last && opposite(last, d)) continue
-    if (walkable(m, g.x + dx, g.y + dy)) options.push(d)
+    if (isTunnelExit(g.x, g.y, d) || walkable(m, g.x + dx, g.y + dy)) options.push(d)
   }
   if (options.length === 0) {
     for (const d of DIR_ORDER) {
       const { dx, dy } = DIR_VEC[d]
-      if (walkable(m, g.x + dx, g.y + dy)) options.push(d)
+      if (isTunnelExit(g.x, g.y, d) || walkable(m, g.x + dx, g.y + dy)) options.push(d)
     }
   }
   if (options.length === 0) return null
@@ -199,6 +220,11 @@ class GameScene extends Phaser.Scene {
 
   create() {
     this.map = parseMap(RAW_MAP)
+    for (const t of TUNNELS) {
+      if (inBounds(this.map, t.x, t.y)) {
+        this.map.dot[t.y][t.x] = false
+      }
+    }
     this.restartBtn = document.getElementById('restart') as HTMLButtonElement
     this.scoreEl = document.getElementById('score') as HTMLSpanElement
     this.restartBtn.hidden = true
@@ -479,7 +505,7 @@ class GameScene extends Phaser.Scene {
     // If stopped, try to start immediately
     if (!this.playerDir && !this.isPlayerMoving) {
       const { dx, dy } = DIR_VEC[d]
-      if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy)) {
+      if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy) || isTunnelExit(this.playerGrid.x, this.playerGrid.y, d)) {
         this.playerDir = d
         this.startPlayerMove()
       } else {
@@ -493,6 +519,21 @@ class GameScene extends Phaser.Scene {
 
   private startPlayerMove() {
     if (!this.playerDir || this.isPlayerMoving || !this.alive || this.won) return
+
+    const tunnel = getTunnel(this.playerGrid.x, this.playerGrid.y, this.playerDir)
+    if (tunnel) {
+      this.playerGrid.x = tunnel.toX
+      this.playerGrid.y = tunnel.toY
+      this.player.setPosition(
+        tunnel.toX * this.cellSize + this.cellSize / 2,
+        tunnel.toY * this.cellSize + this.cellSize / 2,
+      )
+      this.onPlayerReachedCell(tunnel.toX, tunnel.toY)
+      if (this.playerDir) {
+        this.startPlayerMove()
+      }
+      return
+    }
 
     const { dx, dy } = DIR_VEC[this.playerDir]
     const nx = this.playerGrid.x + dx
@@ -546,7 +587,7 @@ class GameScene extends Phaser.Scene {
   private tryApplyQueuedDir() {
     if (!this.queuedDir) return
     const { dx, dy } = DIR_VEC[this.queuedDir]
-    if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy)) {
+    if (walkable(this.map, this.playerGrid.x + dx, this.playerGrid.y + dy) || isTunnelExit(this.playerGrid.x, this.playerGrid.y, this.queuedDir)) {
       this.playerDir = this.queuedDir
       this.queuedDir = null
       this.startPlayerMove()
@@ -557,7 +598,7 @@ class GameScene extends Phaser.Scene {
     // Apply queued turn if possible
     if (this.queuedDir) {
       const { dx, dy } = DIR_VEC[this.queuedDir]
-      if (walkable(this.map, x + dx, y + dy)) {
+      if (walkable(this.map, x + dx, y + dy) || isTunnelExit(x, y, this.queuedDir)) {
         this.playerDir = this.queuedDir
         this.queuedDir = null
       }
@@ -625,6 +666,20 @@ class GameScene extends Phaser.Scene {
       gs.dir = d
       gs.fromX = gs.gridX
       gs.fromY = gs.gridY
+
+      const tunnel = getTunnel(gs.gridX, gs.gridY, d)
+      if (tunnel) {
+        gs.gridX = tunnel.toX
+        gs.gridY = tunnel.toY
+        gs.sprite.setPosition(
+          tunnel.toX * this.cellSize + this.cellSize / 2,
+          tunnel.toY * this.cellSize + this.cellSize / 2,
+        )
+        gs.isMoving = false
+        this.checkGhostCollision()
+        continue
+      }
+
       gs.gridX += dx
       gs.gridY += dy
       gs.isMoving = true
